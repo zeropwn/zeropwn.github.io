@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>gucci on zero.lol</title>
+    <link>/tags/gucci/</link>
+    <description>Recent content in gucci on zero.lol</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Sat, 09 May 2020 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="/tags/gucci/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Hey Gucci, you Gucci?</title>
+      <link>/posts/2020-05-09-hey-gucci-you-gucci/</link>
+      <pubDate>Sat, 09 May 2020 00:00:00 +0000</pubDate>
+      
+      <guid>/posts/2020-05-09-hey-gucci-you-gucci/</guid>
+      <description>0x01 Introduction Around March 14th 2019 I found Local File Inclusion, Path Traversal and File Write on the Gucci subdomain glft.gucci.com on port 3443 (https://glft.gucci.com:3443/). When attempting to go to the subdomain on the regular port 80/433 you would be met with a message that the subdomain was an intranet interface. So all of the findings combined, a malicious actor could have read local files, uploaded a phishing page, upload a shell which could have led to a reverse shell, opening up a potential of traversing the internal network.</description>
+    </item>
+    
+  </channel>
+</rss>

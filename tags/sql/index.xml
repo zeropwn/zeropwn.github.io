@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>sql on zero.lol</title>
+    <link>/tags/sql/</link>
+    <description>Recent content in sql on zero.lol</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Mon, 30 Sep 2019 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="/tags/sql/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Vulnerability Disclosure &amp; LG Electronics</title>
+      <link>/posts/2019-09-30-vuln-disclosure-and-lg/</link>
+      <pubDate>Mon, 30 Sep 2019 00:00:00 +0000</pubDate>
+      
+      <guid>/posts/2019-09-30-vuln-disclosure-and-lg/</guid>
+      <description>0x01 Discovery Utilizing the EDD developed by @83LeeJ of CTRLBOX an initial discovery was made after we found data leaked from the LG Claims Office. Upon discussing this with fellow Underdog Security researcher Dominik Penner (@zer0pwn) and realizing that they had a vulnerability disclosure program, the decision was made to search lge.com for more issues. The first step we took was using spyse.py to generate a list of subdomains and map out the attack surface.</description>
+    </item>
+    
+  </channel>
+</rss>

@@ -1,0 +1,21 @@
+body {
+    background-color: black;
+}
+
+.container {
+    margin: auto;
+}
+
+code {
+    color:rgba(255, 98, 102, 0.7)
+}
+
+._red {
+    color:rgba(255, 98, 102, 0.7);
+    margin: auto;
+    font-size: 17px;
+}
+
+._grey {
+    color: #808080;
+}

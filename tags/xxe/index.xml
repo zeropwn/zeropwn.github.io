@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>xxe on zero.lol</title>
+    <link>/tags/xxe/</link>
+    <description>Recent content in xxe on zero.lol</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Sun, 21 Jul 2019 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="/tags/xxe/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Axway SecureTransport 5.x XML Injection / XXE</title>
+      <link>/posts/2019-07-21-axway-securetransport-xml-injection/</link>
+      <pubDate>Sun, 21 Jul 2019 00:00:00 +0000</pubDate>
+      
+      <guid>/posts/2019-07-21-axway-securetransport-xml-injection/</guid>
+      <description>0x01 Introduction Often times when running scans against large companies, you&amp;rsquo;ll find the same software being reused across many of them. Over the last couple weeks I&amp;rsquo;ve ran into Axway SecureTransport logins at least 3 times during separate audits. According to Axway&amp;rsquo;s website:
+&amp;ldquo;Axway SecureTransport is a multi-protocol MFT gateway for securing, managing, and tracking file flows among people and applications inside your enterprise, and beyond your firewall to your user communities, the cloud and mobile devices.</description>
+    </item>
+    
+  </channel>
+</rss>

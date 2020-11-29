@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>code execution on zero.lol</title>
+    <link>/tags/code-execution/</link>
+    <description>Recent content in code execution on zero.lol</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Sun, 11 Aug 2019 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="/tags/code-execution/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>The Year of Linux on the Desktop (CVE-2019-14744)</title>
+      <link>/posts/2019-08-11-the-year-of-linux-on-the-desktop/</link>
+      <pubDate>Sun, 11 Aug 2019 00:00:00 +0000</pubDate>
+      
+      <guid>/posts/2019-08-11-the-year-of-linux-on-the-desktop/</guid>
+      <description>0x01 Introduction There&amp;rsquo;s been a lot of controversy regarding the KDE KConfig vulnerability along with the way I decided to disclose the issue (full disclosure). Some have even decided to write up blog posts analyzing this vulnerability, despite the extremely detailed proof-of-concept I provided.
+That&amp;rsquo;s why in this post I&amp;rsquo;m going to detail how I found the vulnerability, what led me to finding it, and what my thought process was throughout the research.</description>
+    </item>
+    
+  </channel>
+</rss>

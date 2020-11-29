@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>uri on zero.lol</title>
+    <link>/tags/uri/</link>
+    <description>Recent content in uri on zero.lol</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Wed, 22 May 2019 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="/tags/uri/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Fun With Custom URI Schemes</title>
+      <link>/posts/2019-05-22-fun-with-uri-handlers/</link>
+      <pubDate>Wed, 22 May 2019 00:00:00 +0000</pubDate>
+      
+      <guid>/posts/2019-05-22-fun-with-uri-handlers/</guid>
+      <description>0x01 Introduction Over the past month or so, I&amp;rsquo;ve spent quite a bit of time reading and experimenting with custom URI schemes. As the last post on this blog clearly demonstrated, a poorly implemented custom URI can have a number of security concerns. When I say &amp;ldquo;a number&amp;rdquo;, it&amp;rsquo;s because I&amp;rsquo;m about to bring a few more to light, using EA&amp;rsquo;s Origin Client as our crash test dummy.
+TL;DR: Another Origin RCE, unrelated to CVE-2019-11354.</description>
+    </item>
+    
+  </channel>
+</rss>

@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Posts on zero.lol</title>
+    <link>/posts/</link>
+    <description>Recent content in Posts on zero.lol</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Sat, 09 May 2020 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="/posts/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Hey Gucci, you Gucci?</title>
+      <link>/posts/2020-05-09-hey-gucci-you-gucci/</link>
+      <pubDate>Sat, 09 May 2020 00:00:00 +0000</pubDate>
+      
+      <guid>/posts/2020-05-09-hey-gucci-you-gucci/</guid>
+      <description>0x01 Introduction Around March 14th 2019 I found Local File Inclusion, Path Traversal and File Write on the Gucci subdomain glft.gucci.com on port 3443 (https://glft.gucci.com:3443/). When attempting to go to the subdomain on the regular port 80/433 you would be met with a message that the subdomain was an intranet interface. So all of the findings combined, a malicious actor could have read local files, uploaded a phishing page, upload a shell which could have led to a reverse shell, opening up a potential of traversing the internal network.</description>
+    </item>
+    
+    <item>
+      <title>Vulnerability Disclosure &amp; LG Electronics</title>
+      <link>/posts/2019-09-30-vuln-disclosure-and-lg/</link>
+      <pubDate>Mon, 30 Sep 2019 00:00:00 +0000</pubDate>
+      
+      <guid>/posts/2019-09-30-vuln-disclosure-and-lg/</guid>
+      <description>0x01 Discovery Utilizing the EDD developed by @83LeeJ of CTRLBOX an initial discovery was made after we found data leaked from the LG Claims Office. Upon discussing this with fellow Underdog Security researcher Dominik Penner (@zer0pwn) and realizing that they had a vulnerability disclosure program, the decision was made to search lge.com for more issues. The first step we took was using spyse.py to generate a list of subdomains and map out the attack surface.</description>
+    </item>
+    
+    <item>
+      <title>The Year of Linux on the Desktop (CVE-2019-14744)</title>
+      <link>/posts/2019-08-11-the-year-of-linux-on-the-desktop/</link>
+      <pubDate>Sun, 11 Aug 2019 00:00:00 +0000</pubDate>
+      
+      <guid>/posts/2019-08-11-the-year-of-linux-on-the-desktop/</guid>
+      <description>0x01 Introduction There&amp;rsquo;s been a lot of controversy regarding the KDE KConfig vulnerability along with the way I decided to disclose the issue (full disclosure). Some have even decided to write up blog posts analyzing this vulnerability, despite the extremely detailed proof-of-concept I provided.
+That&amp;rsquo;s why in this post I&amp;rsquo;m going to detail how I found the vulnerability, what led me to finding it, and what my thought process was throughout the research.</description>
+    </item>
+    
+    <item>
+      <title>Axway SecureTransport 5.x XML Injection / XXE</title>
+      <link>/posts/2019-07-21-axway-securetransport-xml-injection/</link>
+      <pubDate>Sun, 21 Jul 2019 00:00:00 +0000</pubDate>
+      
+      <guid>/posts/2019-07-21-axway-securetransport-xml-injection/</guid>
+      <description>0x01 Introduction Often times when running scans against large companies, you&amp;rsquo;ll find the same software being reused across many of them. Over the last couple weeks I&amp;rsquo;ve ran into Axway SecureTransport logins at least 3 times during separate audits. According to Axway&amp;rsquo;s website:
+&amp;ldquo;Axway SecureTransport is a multi-protocol MFT gateway for securing, managing, and tracking file flows among people and applications inside your enterprise, and beyond your firewall to your user communities, the cloud and mobile devices.</description>
+    </item>
+    
+    <item>
+      <title>Fun With Custom URI Schemes</title>
+      <link>/posts/2019-05-22-fun-with-uri-handlers/</link>
+      <pubDate>Wed, 22 May 2019 00:00:00 +0000</pubDate>
+      
+      <guid>/posts/2019-05-22-fun-with-uri-handlers/</guid>
+      <description>0x01 Introduction Over the past month or so, I&amp;rsquo;ve spent quite a bit of time reading and experimenting with custom URI schemes. As the last post on this blog clearly demonstrated, a poorly implemented custom URI can have a number of security concerns. When I say &amp;ldquo;a number&amp;rdquo;, it&amp;rsquo;s because I&amp;rsquo;m about to bring a few more to light, using EA&amp;rsquo;s Origin Client as our crash test dummy.
+TL;DR: Another Origin RCE, unrelated to CVE-2019-11354.</description>
+    </item>
+    
+    <item>
+      <title>A Questionable Journey From XSS to RCE</title>
+      <link>/posts/2019-05-13-xss-to-rce/</link>
+      <pubDate>Mon, 13 May 2019 00:00:00 +0000</pubDate>
+      
+      <guid>/posts/2019-05-13-xss-to-rce/</guid>
+      <description>Introduction As many of you reading this probably already know, in mid April, a good friend of mine (@Daley) and I located a Remote Code Execution vulnerability in EA&amp;rsquo;s Origin client (CVE-2019-11354). Today I&amp;rsquo;m going to go in depth on how we discovered this vulnerability, along with a couple others we needed to chain along the way ;pp
+
+Debugging Origin A lot of what was discovered was enabled by QtWebEngine debugging.</description>
+    </item>
+    
+  </channel>
+</rss>
